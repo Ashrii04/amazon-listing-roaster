@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Amazon Listing Roaster</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem; }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .header { margin-bottom: 2rem; }
+  .header h1 { font-size: 28px; font-weight: 600; color: #1a1a1a; }
+  .header p { font-size: 15px; color: #666; margin-top: 6px; }
+  .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+  .field-label { font-size: 12px; color: #888; margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+  input[type="text"], input[type="password"], textarea {
+    width: 100%; font-size: 14px; font-family: inherit;
+    border: 1px solid #e0e0e0; border-radius: 8px;
+    padding: 10px 12px; background: #fafafa; color: #1a1a1a;
+    outline: none; transition: border 0.15s;
+  }
+  input[type="text"]:focus, input[type="password"]:focus, textarea:focus { border-color: #999; background: #fff; }
+  textarea { resize: vertical; min-height: 100px; }
+  .api-row { display: flex; gap: 8px; align-items: center; }
+  .api-row input { flex: 1; }
+  .toggle-btn { font-size: 12px; color: #666; background: #f0f0f0; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+  .toggle-btn:hover { background: #e8e8e8; }
+  .roast-btn { width: 100%; padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: 10px; background: #1a1a1a; color: #fff; border: none; margin-top: 1rem; transition: opacity 0.15s; font-family: inherit; }
+  .roast-btn:hover { opacity: 0.85; }
+  .roast-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .error-msg { font-size: 13px; color: #c0392b; margin-top: 8px; display: none; }
+  .loading-msg { font-size: 14px; color: #888; text-align: center; padding: 1.5rem; display: none; }
+  .grade-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 1.25rem; }
+  .grade-card { background: #f5f4f0; border-radius: 10px; padding: 0.9rem 0.5rem; text-align: center; }
+  .grade-label { font-size: 10px; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .grade-letter { font-size: 30px; font-weight: 700; line-height: 1; }
+  .grade-A { color: #27ae60; } .grade-B { color: #2980b9; } .grade-C { color: #e67e22; } .grade-D { color: #e74c3c; } .grade-F { color: #922b21; }
+  .tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border-bottom: 1px solid #e5e5e5; }
+  .tab { padding: 10px 18px; font-size: 14px; cursor: pointer; border: none; background: none; color: #888; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; font-weight: 500; }
+  .tab.active { color: #1a1a1a; border-bottom: 2px solid #1a1a1a; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .roast-item { border-top: 1px solid #f0f0f0; padding: 0.9rem 0; }
+  .roast-item:first-child { border-top: none; padding-top: 0; }
+  .roast-category { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .roast-text { font-size: 14px; color: #1a1a1a; line-height: 1.6; }
+  .improve-btn { width: 100%; padding: 11px; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 10px; background: #fff; color: #1a1a1a; border: 1px solid #ccc; margin-top: 1rem; font-family: inherit; transition: background 0.15s; }
+  .improve-btn:hover { background: #f5f4f0; }
+  .improve-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .section-title { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .copy-field-btn { font-size: 11px; color: #666; background: #f0f0f0; border: 1px solid #e0e0e0; border-radius: 6px; padding: 3px 8px; cursor: pointer; font-family: inherit; }
+  .copy-field-btn:hover { background: #e8e8e8; }
+  .improved-title { font-size: 15px; font-weight: 500; color: #1a1a1a; line-height: 1.5; background: #f5f4f0; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; }
+  .improved-bullet { font-size: 14px; color: #1a1a1a; line-height: 1.6; padding: 8px 0; border-top: 1px solid #f0f0f0; display: flex; gap: 10px; }
+  .improved-bullet:first-child { border-top: none; }
+  .bullet-dot { color: #aaa; flex-shrink: 0; }
+  .keyword-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font-size: 12px; background: #f0f0f0; border: 1px solid #e0e0e0; border-radius: 20px; padding: 4px 12px; color: #444; }
+  .share-btn { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 16px; font-size: 13px; color: #666; cursor: pointer; margin-top: 0.75rem; font-family: inherit; }
+  .share-btn:hover { background: #f5f4f0; }
+  .cta-box { background: #1a1a1a; border-radius: 12px; padding: 1.5rem; text-align: center; margin-top: 1rem; }
+  .cta-box p { font-size: 14px; color: #aaa; margin-bottom: 0.9rem; line-height: 1.6; }
+  .cta-link { display: inline-block; background: #fff; color: #1a1a1a; border-radius: 8px; padding: 10px 24px; font-size: 14px; font-weight: 600; text-decoration: none; }
+  .cta-link:hover { opacity: 0.9; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 20px; margin-left: 6px; background: #e8f5e9; color: #27ae60; font-weight: 600; }
+  .powered { text-align: center; font-size: 12px; color: #bbb; margin-top: 2rem; }
+  .api-hint { font-size: 12px; color: #888; margin-top: 6px; }
+  .api-hint a { color: #2980b9; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Amazon Listing Roaster</h1>
+    <p>Paste your listing. Get brutally honest grades. Get an AI-improved version instantly.</p>
+  </div>
+
+  <div class="card">
+    <div class="field-label">Google Gemini API key (free — stays in your browser)</div>
+    <div class="api-row">
+      <input type="password" id="apiKey" placeholder="AIzaSy..." />
+      <button class="toggle-btn" onclick="toggleKey()">Show</button>
+    </div>
+    <div class="api-hint">Get a free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> → Get API key (no credit card needed)</div>
+    <div class="error-msg" id="keyError">Please enter your Gemini API key (starts with AIza...)</div>
+  </div>
+
+  <div class="card">
+    <div class="field-label" style="margin-bottom:10px;">Product title</div>
+    <input type="text" id="title" placeholder="e.g. Premium Stainless Steel Water Bottle 32oz" style="margin-bottom:1rem;" />
+    <div class="field-label" style="margin-bottom:10px;">Bullet points / description</div>
+    <textarea id="bullets" placeholder="• Feature one&#10;• Feature two&#10;• Feature three"></textarea>
+    <button class="roast-btn" id="roastBtn" onclick="roastListing()">Roast my listing</button>
+    <div class="error-msg" id="formError">Please fill in at least the product title.</div>
+  </div>
+
+  <div class="loading-msg" id="loadingMsg">Analyzing your listing... (~10 seconds)</div>
+
+  <div id="resultsSection" style="display:none;">
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" id="tab-btn-roast" onclick="switchTab('roast', this)">Roast report</button>
+        <button class="tab" id="tab-btn-improved" onclick="switchTab('improved', this)">Improved listing <span class="badge">AI</span></button>
+      </div>
+      <div class="tab-content active" id="tab-roast">
+        <div class="grade-grid" id="gradeGrid"></div>
+        <div id="roastDetails"></div>
+        <div style="text-align:center;">
+          <button class="share-btn" onclick="copyRoast()">Copy roast to share</button>
+        </div>
+        <button class="improve-btn" id="improveBtn" onclick="improveListing()">✦ Generate improved listing</button>
+        <div class="loading-msg" id="improveLoading">Rewriting your listing with AI...</div>
+      </div>
+      <div class="tab-content" id="tab-improved">
+        <div id="improvedContent">
+          <p style="font-size:14px;color:#888;text-align:center;padding:2rem 0;">Click "Generate improved listing" in the Roast report tab first.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-box">
+      <p>Pixii takes this further — beautiful visual designs optimized for Amazon, generated in 2 minutes for free. No agency. No prompts.</p>
+      <a class="cta-link" href="https://pixii.ai" target="_blank">Design my listing with Pixii →</a>
+    </div>
+  </div>
+
+  <div class="powered">Powered by Google Gemini AI &nbsp;·&nbsp; Built for <a href="https://pixii.ai" style="color:#bbb;">Pixii.ai</a></div>
+</div>
+
+<script>
+  let parsedRoast = null;
+  let currentTitle = '';
+  let currentBullets = '';
+
+  function toggleKey() {
+    const inp = document.getElementById('apiKey');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    event.target.textContent = inp.type === 'password' ? 'Show' : 'Hide';
+  }
+
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+  }
+
+  function gradeColor(g) {
+    return { A:'grade-A', B:'grade-B', C:'grade-C', D:'grade-D', F:'grade-F' }[g] || 'grade-C';
+  }
+
+  async function callGemini(prompt) {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'API error');
+    let text = data.candidates[0].content.parts[0].text.trim();
+    text = text.replace(/```json|```/g, '').trim();
+    return text;
+  }
+
+  function renderRoast(data) {
+    parsedRoast = data;
+    const grid = document.getElementById('gradeGrid');
+    const details = document.getElementById('roastDetails');
+    grid.innerHTML = ''; details.innerHTML = '';
+    const cats = ['title','bullets','keywords','conversion','overall'];
+    const labels = { title:'Title', bullets:'Bullets', keywords:'Keywords', conversion:'Conversion', overall:'Overall' };
+    cats.forEach(cat => {
+      const item = data[cat]; if (!item) return;
+      const gc = document.createElement('div');
+      gc.className = 'grade-card';
+      gc.innerHTML = `<div class="grade-label">${labels[cat]}</div><div class="grade-letter ${gradeColor(item.grade)}">${item.grade}</div>`;
+      grid.appendChild(gc);
+    });
+    cats.forEach(cat => {
+      const item = data[cat]; if (!item) return;
+      const div = document.createElement('div');
+      div.className = 'roast-item';
+      div.innerHTML = `<div class="roast-category">${labels[cat]} — ${item.grade}</div><div class="roast-text">${item.roast}</div>`;
+      details.appendChild(div);
+    });
+  }
+
+  function renderImproved(data) {
+    window._improvedData = data;
+    const container = document.getElementById('improvedContent');
+    container.innerHTML = '';
+
+    const titleSec = document.createElement('div');
+    titleSec.style.marginBottom = '1.25rem';
+    const safeTitle = data.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    titleSec.innerHTML = `<div class="section-head"><span class="section-title">Improved title</span><button class="copy-field-btn" onclick="copyText('${safeTitle}', this)">Copy</button></div><div class="improved-title">${data.title}</div>`;
+    container.appendChild(titleSec);
+
+    const bulletSec = document.createElement('div');
+    bulletSec.style.marginBottom = '1.25rem';
+    bulletSec.innerHTML = `<div class="section-head"><span class="section-title">Improved bullet points</span><button class="copy-field-btn" onclick="copyBullets(this)">Copy all</button></div>`;
+    const bulletList = document.createElement('div');
+    data.bullets.forEach(b => {
+      const d = document.createElement('div');
+      d.className = 'improved-bullet';
+      d.innerHTML = `<span class="bullet-dot">•</span><span>${b}</span>`;
+      bulletList.appendChild(d);
+    });
+    bulletSec.appendChild(bulletList);
+    container.appendChild(bulletSec);
+
+    if (data.keywords && data.keywords.length) {
+      const kwSec = document.createElement('div');
+      kwSec.innerHTML = `<div class="section-title" style="margin-bottom:8px;">Recommended keywords</div><div class="keyword-chips">${data.keywords.map(k=>`<span class="chip">${k}</span>`).join('')}</div>`;
+      container.appendChild(kwSec);
+    }
+
+    document.getElementById('tab-btn-roast').classList.remove('active');
+    document.getElementById('tab-btn-improved').classList.add('active');
+    document.getElementById('tab-roast').classList.remove('active');
+    document.getElementById('tab-improved').classList.add('active');
+  }
+
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent; btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 2000);
+    });
+  }
+
+  function copyBullets(btn) {
+    if (!window._improvedData) return;
+    copyText(window._improvedData.bullets.map(b => '• ' + b).join('\n'), btn);
+  }
+
+  function copyRoast() {
+    if (!parsedRoast) return;
+    const labels = { title:'Title', bullets:'Bullets', keywords:'Keywords', conversion:'Conversion', overall:'Overall' };
+    let text = 'My Amazon Listing Roast Results\n\n';
+    ['title','bullets','keywords','conversion','overall'].forEach(cat => {
+      const item = parsedRoast[cat];
+      if (item) text += `${labels[cat]}: ${item.grade}\n${item.roast}\n\n`;
+    });
+    text += 'Fix it free at pixii.ai';
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = event.target; btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy roast to share', 2000);
+    });
+  }
+
+  async function roastListing() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    currentTitle = document.getElementById('title').value.trim();
+    currentBullets = document.getElementById('bullets').value.trim();
+    document.getElementById('keyError').style.display = 'none';
+    document.getElementById('formError').style.display = 'none';
+
+    if (!apiKey.startsWith('AIza')) { document.getElementById('keyError').style.display = 'block'; return; }
+    if (!currentTitle) { document.getElementById('formError').style.display = 'block'; return; }
+
+    const btn = document.getElementById('roastBtn');
+    btn.disabled = true; btn.textContent = 'Roasting...';
+    document.getElementById('loadingMsg').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+
+    const prompt = `You are an Amazon listing expert and brutal-but-helpful critic. Analyze this listing and return ONLY valid JSON, no markdown, no preamble, no explanation.
+
+Listing:
+Title: ${currentTitle}
+Bullets: ${currentBullets || '(none provided)'}
+
+Return exactly this JSON structure:
+{"title":{"grade":"A or B or C or D or F","roast":"1-2 sentences specific and funny with 1 concrete fix"},"bullets":{"grade":"A or B or C or D or F","roast":"1-2 sentences specific and funny with 1 concrete fix"},"keywords":{"grade":"A or B or C or D or F","roast":"1-2 sentences specific and funny with 1 concrete fix"},"conversion":{"grade":"A or B or C or D or F","roast":"1-2 sentences specific and funny with 1 concrete fix"},"overall":{"grade":"A or B or C or D or F","roast":"1-2 sentences overall verdict with the single most important fix"}}
+
+Rules: be specific and reference actual words from their listing. Be funny but constructive. Most listings deserve C or D grades. Never give all A grades.`;
+
+    try {
+      const text = await callGemini(prompt);
+      const parsed = JSON.parse(text);
+      renderRoast(parsed);
+      document.getElementById('resultsSection').style.display = 'block';
+      document.getElementById('improvedContent').innerHTML = '<p style="font-size:14px;color:#888;text-align:center;padding:2rem 0;">Click "Generate improved listing" below.</p>';
+    } catch(err) {
+      document.getElementById('formError').textContent = 'Error: ' + (err.message || 'Check your API key and try again');
+      document.getElementById('formError').style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Roast my listing';
+      document.getElementById('loadingMsg').style.display = 'none';
+    }
+  }
+
+  async function improveListing() {
+    const btn = document.getElementById('improveBtn');
+    btn.disabled = true; btn.textContent = 'Generating...';
+    document.getElementById('improveLoading').style.display = 'block';
+
+    const prompt = `You are an expert Amazon copywriter. Rewrite this listing to maximize conversions and search ranking. Return ONLY valid JSON, no markdown, no preamble, no explanation.
+
+Original listing:
+Title: ${currentTitle}
+Bullets: ${currentBullets || '(none)'}
+
+Roast feedback: ${JSON.stringify(parsedRoast)}
+
+Return exactly this JSON:
+{"title":"rewritten optimized title under 200 chars with top keywords","bullets":["BENEFIT-FIRST bullet point 1 with detail","BENEFIT-FIRST bullet point 2 with detail","BENEFIT-FIRST bullet point 3 with detail","BENEFIT-FIRST bullet point 4 with detail","BENEFIT-FIRST bullet point 5 with detail"],"keywords":["keyword1","keyword2","keyword3","keyword4","keyword5","keyword6"]}
+
+Rules: Title must include top keywords naturally. Each bullet must start with a CAPITAL BENEFIT word. Keywords must be high-volume Amazon search terms.`;
+
+    try {
+      const text = await callGemini(prompt);
+      const parsed = JSON.parse(text);
+      renderImproved(parsed);
+    } catch(err) {
+      document.getElementById('improveLoading').textContent = 'Error generating. Try again.';
+      document.getElementById('improveLoading').style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = '✦ Regenerate improved listing';
+      document.getElementById('improveLoading').style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>
